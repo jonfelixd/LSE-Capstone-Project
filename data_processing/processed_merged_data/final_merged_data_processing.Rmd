@@ -1,0 +1,484 @@
+```{r}
+library(dplyr)
+library(ggplot2)
+library(readxl)
+library(tidyr)
+library(scales)
+library(missForest)
+library(Metrics)
+set.seed(123)
+
+# Import pre-processed council tax data
+filepath_tax <- "../council_tax_data/tax_data_processed.csv"
+tax_df <- read.csv(filepath_tax)
+
+# Import pre-processed NOMIS API data
+filepath_nomis <- "../nomis_api_data/nomis_data_processed.csv"
+nomis_df <- read.csv(filepath_nomis)
+
+# Import pre-processed property data
+filepath_property <- "../property_data/property_data_processed.csv"
+property_df <- read.csv(filepath_property)
+
+# Define range of final dataset
+start_year <- 2000
+end_year <- 2021
+```
+
+```{r}
+# Function to compare LACD columns to identify potential differences
+compare_lacd <- function(df1, df2) {
+  
+  # Check for unique LACD values
+  unique_lacd1 <- length(unique(df1$LACD))
+  unique_lacd2 <- length(unique(df2$LACD))
+  print("Unique LACD values in df1:")
+  print(unique_lacd1)
+  print("Unique LACD values in df2:")
+  print(unique_lacd2)
+  
+  # Find differences
+  diff_1_not_2 <- setdiff(unique_lacd1, unique_lacd2)
+  diff_2_not_1 <- setdiff(unique_lacd2, unique_lacd1)
+  print("LACD in df1 but not in df2:")
+  print(diff_1_not_2)
+  print("LACD in df2 but not in df1:")
+  print(diff_2_not_1)
+  
+  # Return results as a list
+  return(list(diff_1_not_2 = diff_1_not_2,
+              diff_2_not_1 = diff_2_not_1))
+}
+```
+
+```{r}
+# Run the compare_lacd function on all dataframes
+compare_lacd_nomis <- compare_lacd(tax_df, nomis_df)
+compare__lacd_property <- compare_lacd(tax_df, property_df)
+```
+
+```{r}
+# Merge the data by LACD and Year
+merged_df <- tax_df %>%
+  full_join(nomis_df, by = c("LACD", "Year")) %>%
+  full_join(property_df, by = c("LACD", "Year"))
+```
+
+```{r}
+# Define the plotting function
+plot_timeseries <- function(data, variable, color, y_axis_label) {
+  
+  # Remove NA values
+  data <- data[!is.na(data[[variable]]),]  
+  
+  # Define plot parameters
+  min_year <- min(data$Year)
+  max_year <- max(data$Year)
+  font_family <- "Times New Roman"
+  
+  # Define plot design
+  ggplot(data, 
+         aes(x = Year, y = .data[[variable]], group = LACD)) +
+    geom_line(color = color, alpha = 0.2) +
+    labs(x = 'Year', y = y_axis_label) + 
+    scale_y_continuous(labels = comma) +
+    scale_x_continuous(
+      breaks = seq(min_year, max_year, by = 2),
+      expand = c(0, 0)
+    ) +
+    theme_minimal() + 
+    theme(
+      legend.position = "none",
+      plot.background = element_rect(fill = NA, color = NA),
+      panel.background = element_rect(fill = "#F0F0F0", color = NA),
+      panel.grid.major.y = element_line(color = "white"),
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor = element_blank(),
+      axis.line = element_blank(),
+      axis.title.x = element_text(margin = margin(t = 10), family = font_family),
+      axis.title.y = element_text(margin = margin(r = 10), family = font_family),
+      axis.text.x = element_text(angle = 45, hjust = 1, family = font_family),
+      axis.text.y = element_text(family = font_family)
+    )
+}
+```
+
+```{r}
+## Adjust all GBP figures to real values
+
+# Import inflation data
+filepath_inflation <- "../inflation_data/inflation_data_processed.csv"
+inflation_df <- read.csv(filepath_inflation)
+
+# Cut inflation_df year range to match merged_df year range
+inflation_df <- inflation_df %>%
+  filter(Year >= min(merged_df$Year) & 
+           Year <= max(merged_df$Year))
+
+# Define base year
+base_year <- end_year
+
+# Create cumulative inflation index normalised to base year
+inflation_df <- inflation_df %>%
+  arrange(Year) %>%
+  mutate(Cumulative_Index = cumprod(1 + Inflation_Rate / 100)) %>%
+  mutate(Cumulative_Index = Cumulative_Index / Cumulative_Index[Year == base_year])
+
+# Merge inflation index into merged_df
+real_df <- merge(merged_df, inflation_df, by = "Year")
+
+# Define vector of nominal GBP variables
+nominal_gbp_vars <- c("GVA", "Tax_D",
+                      "Hs_Price_Median",
+                      "Hs_Price_Median_New",
+                      "Hs_Price_Median_Exist",
+                      "Hs_Price_Mean",
+                      "Hs_Price_Mean_New", 
+                      "Hs_Price_Mean_Exist",
+                      "Hs_Price_25th",
+                      "Hs_Price_10th",
+                      "GDHI_Total",
+                      "GDHI_Primary_Resources",
+                      "GDHI_Secondary_Resources",
+                      "GDHI_Primary_Uses",
+                      "GDHI_Secondary_Uses")
+
+# Transform nominal GBP variables to real values
+real_df <- real_df %>%
+  mutate(across(
+    all_of(nominal_gbp_vars),
+    ~ . / Cumulative_Index,
+    .names = "{.col}_Real"
+  )) %>%
+  select(-all_of(nominal_gbp_vars))
+
+# Remove inflation and inflation index columns
+real_df$Inflation_Rate <- NULL
+real_df$Cumulative_Index <- NULL
+```
+
+```{r}
+library(panelView)
+
+# Cut to actual range and turn into tibble
+real_cut_df <- real_df %>%
+  filter(Year >= start_year &
+           Year <= end_year)
+
+real_cut_tib <- as_tibble(real_cut_df)
+
+# Create list of all columns 
+all_cols <- colnames(real_cut_tib)
+
+# Loop through all columns and create panel view
+for (col in all_cols) {
+  formula_str <- paste(col, "~ 1")
+  panelview(
+    as.formula(formula_str),
+    data = real_cut_tib,
+    index = c("LACD", "Year"),
+    type = "miss",
+    main = col
+    )
+}
+```
+
+```{r}
+## Create a heatmap of combined missing values
+
+# Define all columns except LACD and Year
+all_cols <- setdiff(names(real_cut_df), c("LACD", "Year", 
+                                          "LANM", "Authority_Type", 
+                                          "Region"))
+
+# Calculate the number of missing values for each LACD and Year combination
+missing_data_summary <- real_cut_df %>%
+  pivot_longer(cols = all_of(all_cols), names_to = "variable", values_to = "value") %>%
+  group_by(LACD, Year) %>%
+  summarise(missing_count = sum(is.na(value)), .groups = 'drop')
+
+# Define the font family
+font_family <- "Times New Roman"
+
+# Create a heatmap
+heatmap_plot <- ggplot(missing_data_summary, aes(x = Year, y = factor(LACD), fill = missing_count)) +
+  geom_tile(color = "white") +
+  scale_fill_viridis_c(option = "rocket", direction = -1, name = "Missing Values Count") +
+  labs(x = "Year",
+       y = "Local Authority") +
+  theme_minimal() +
+  theme(
+    plot.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = NA),
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank(), 
+    axis.line = element_blank(),
+    axis.title.x = element_text(margin = margin(t = 10),
+                                family = font_family, size = 16),
+    axis.title.y = element_text(margin = margin(r = 0),
+                                family = font_family, size = 16),
+    axis.text.x = element_text(angle = 45, hjust = 1,
+                               family = font_family, size = 14),
+    axis.text.y = element_blank(),
+    legend.text = element_text(family = font_family, size = 14),
+    legend.title = element_text(angle = 90,
+                                family = font_family, size = 16),
+  ) +
+  guides(fill = guide_colorbar(title.position = "right", title.hjust = 0.5))
+```
+
+```{r}
+print(heatmap_plot)
+```
+
+```{r}
+# Identify total % of missing values in dataset
+na_prop <- sum(is.na(real_cut_df)) / prod(dim(real_cut_df))
+print(paste("Total proportion of missing values: ", na_prop))
+
+# Identify total % of rows with any missing values
+rows_na_prop <- sum(apply(real_cut_df, 1, anyNA)) / nrow(real_cut_df)
+print(paste("Proportion of rows with any missing values: ", rows_na_prop))
+
+# Summarise number of missing values for each LACD
+lacd_missing_summary <- missing_data_summary %>%
+  group_by(LACD) %>%
+  summarize(total_missing_count = sum(missing_count, na.rm = TRUE)) %>%
+  arrange(desc(total_missing_count))
+
+# Find proportion of LACDs with missing values
+lacd_na_prop <- sum(
+  lacd_missing_summary$total_missing_count > 0) / nrow(lacd_missing_summary)
+print(paste("Proportion of LACDs with missing values: ", lacd_na_prop))
+```
+
+```{r}
+# Impute Isels of Scilly newly built dwellings price data with price data
+# Missingness due to insufficient number of new builds
+real_cut_df <- real_cut_df %>%
+  mutate(
+    Hs_Price_Mean_New_Real = if_else(
+      LACD == "E06000053", Hs_Price_Mean_Real, Hs_Price_Mean_New_Real),
+    Hs_Price_Median_New_Real = if_else(
+      LANM == "Isles of Scilly", Hs_Price_Median_Real, Hs_Price_Median_New_Real)
+  )
+```
+
+```{r}
+# Define vector of population columns affected by consistent missing values
+# ("Pop_" and "Age_" prefix)
+affected_cols <- names(real_cut_df)[grepl("Pop_|Age_", names(real_cut_df))]
+print(affected_cols)
+
+# Identify LACDs with missing values in Age_Avg
+affected_lacds <- real_cut_df %>% 
+  filter(is.na(Age_Avg)) %>%
+  select(LACD) %>%
+  distinct() %>%
+  pull(LACD)
+
+# Print number of affected LACDs
+affected_lacd_number <- length(affected_lacds)
+```
+
+```{r}
+# Remove code and name columns for imputation
+data_for_impute <- real_cut_df %>% 
+  mutate(across(c(Authority_Type, Year, Region), as.factor))
+data_for_impute <- data_for_impute %>% 
+  select(-c(LANM, LACD))
+
+# Apply the imputation function
+filled_df_mf <- missForest(data_for_impute, verbose = TRUE)
+
+# Extract NRMSE
+ooberror <- filled_df_mf$OOBerror
+
+# Extract filled data
+filled_df <- filled_df_mf$ximp
+
+# Add back id columns
+filled_df <- cbind(real_cut_df %>% select(LACD, LANM), filled_df)
+```
+
+```{r}
+# Print number of missing values after imputation
+print(colSums(is.na(filled_df)))
+```
+
+```{r}
+# Mirror the missing values pattern by selecting additional 5% of LACD
+# For which to remove all data after 2010
+unaffected_lacds_df <- real_cut_df %>%
+  filter(!LACD %in% affected_lacds)
+
+artificial_na_lacs <- unaffected_lacds_df %>%
+  select(LACD) %>%
+  distinct() %>%
+  sample_n(affected_lacd_number) %>%
+  pull(LACD)
+
+# Delete all data after 2010 for selected LACDs
+artificial_na_df <- unaffected_lacds_df %>% 
+  mutate(across(all_of(affected_cols), 
+                ~ if_else(LACD %in% artificial_na_lacs 
+                          & Year > 2010, NA, .)))
+```
+
+```{r}
+# Remove character columns
+art_data_for_impute <- artificial_na_df %>% 
+  mutate(across(c(Authority_Type, Year, Region), as.factor))
+art_data_for_impute <- art_data_for_impute %>% 
+  select(-c(LANM, LACD))
+
+# Apply the imputation function
+art_filled_df_mf <- missForest(art_data_for_impute, verbose = TRUE)
+
+# Extract NRMSE
+art_ooberror <- art_filled_df_mf$OOBerror
+
+# Extract filled data
+art_filled_df <- art_filled_df_mf$ximp
+
+# Add back id columns
+artificial_filled_df <- cbind(
+  artificial_na_df %>% select(LACD, LANM), art_filled_df)
+
+```
+
+```{r}
+# Transform, filter, and select necessary columns
+artificial_filled_df <- artificial_filled_df %>%
+  mutate(Year = as.numeric(as.character(Year)))
+
+plot_data <- unaffected_lacds_df %>%
+  filter(LACD %in% artificial_na_lacs) %>%
+  select(LACD, Year, all_of(affected_cols)) %>%
+  # Join with imputed data
+  left_join(
+    artificial_filled_df %>%
+      filter(LACD %in% artificial_na_lacs) %>%
+      select(LACD, Year, all_of(affected_cols)),
+    by = c("LACD", "Year"),
+    suffix = c("_True", "_Imputed")
+  )
+
+# Standardise (scale) the data for plotting
+plot_data_scaled <- plot_data %>%
+  mutate(across(ends_with("_True"), scale)) %>%
+  mutate(across(ends_with("_Imputed"), scale))
+
+# Convert data to long format; pivot to have separate True and Imputed columns
+plot_data_long <- plot_data_scaled %>%
+  pivot_longer(
+    cols = ends_with("_True") | ends_with("_Imputed"), 
+    names_to = c("variable", "type"), 
+    names_pattern = "(.*)_(True|Imputed)"
+  ) %>%
+  pivot_wider(
+    names_from = type, 
+    values_from = value
+  )
+```
+
+```{r}
+# Create combined plot of True vs Imputed values
+combined_plot <- ggplot(plot_data_long, aes(x = True, y = Imputed)) +
+  geom_point(alpha = 0.5, color = "deepskyblue3") +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", 
+              color = "black", linewidth = 0.8) +
+  scale_y_continuous(limits = c(-3, 5.5), breaks = seq(-3, 5, 1)) +
+  scale_x_continuous(limits = c(-3, 5.5), breaks = seq(-3, 5, 1)) +
+  labs(x = "True Values (Standardised)",
+    y = "Imputed Values (Standardised)",
+  ) +
+  theme_minimal() +
+  theme(
+    plot.background = element_rect(fill = NA, color = NA),
+    panel.background = element_rect(fill = NA, color = NA),
+    panel.grid.major = element_line(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_blank(),
+    axis.title.x = element_text(margin = margin(t = 10),
+                                family = font_family, size = 16),
+    axis.title.y = element_text(margin = margin(r = 10),
+                                family = font_family, size = 16),
+    axis.text.x = element_text(family = font_family, size = 14),
+    axis.text.y = element_text(family = font_family, size = 14)
+  )
+```
+
+```{r}
+print(combined_plot)
+```
+
+```{r}
+# Calculate MSE
+mse <- mse(plot_data_long$True,
+           plot_data_long$Imputed)
+print(mse)
+```
+
+```{r}
+# Define the columns to be transformed
+prop_cols <- c('Pop_Male', 'Pop_Female', 'Pop_Aged_0_15',
+                  'Pop_Aged_16_24', 'Pop_Aged_25_49', 'Pop_Aged_50_64')
+                  
+
+density_cols <- c('Hs_Sales_Total', 'Hs_Sales_New', 'Hs_Sales_Exist',
+                  'GVA_Real', 'GDHI_Total_Real', 'GDHI_Primary_Resources_Real',
+                  'GDHI_Secondary_Resources_Real', 'GDHI_Primary_Uses_Real',
+                  'GDHI_Secondary_Uses_Real')
+
+# Perform proportion transformation
+final_df <- filled_df %>%
+  mutate(across(all_of(prop_cols), ~ . / Pop_Total, .names = "{col}_Prop"))
+
+# Perform per capita transformation
+final_df <- final_df %>%
+  mutate(across(all_of(density_cols), ~ . / Pop_Total, .names = "{col}_Density"))
+
+# Import area data to calculate population density
+filepath_area <- "../shape_data/area.csv"
+area_df <- read.csv(filepath_area) %>%
+  rename(LACD = LAD22CD, Area = Shape__Area) %>%
+  mutate(Area = Area / 10^6) %>%
+  select(LACD, Area)
+
+# Check if the LAD codes are the same in the two datasets
+missing_lacd_area <- setdiff(final_df$LACD, area_df$LACD)
+print(missing_lacd_area)
+
+missing_lacd_data <- setdiff(area_df$LACD, final_df$LACD)
+print(missing_lacd_data)
+
+# Merge area data with the main dataset and calculate population density
+final_df <- final_df %>%
+  left_join(area_df, by = "LACD") %>%
+  mutate(Pop_Density = Pop_Total / Area)
+```
+
+```{r}
+# Final check for any missing values
+print(sum(is.na(final_df)))
+
+# Check final column names
+print(colnames(final_df))
+```
+
+```{r}
+# Save filled data to CSV
+write.csv(final_df, "full_dataset.csv", row.names = FALSE)
+
+# Save heatmap plot
+ggsave("./figures/na_heatmap.png",
+       plot = heatmap_plot,
+       width = 10, height = 6, dpi = 300)
+
+# Save combined plot
+ggsave("./figures/imputation_plot.png",
+       plot = combined_plot,
+       width = 8, height = 8, dpi = 300)
+```
+

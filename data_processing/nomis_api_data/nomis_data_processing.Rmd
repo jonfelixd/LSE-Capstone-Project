@@ -1,0 +1,232 @@
+```{r}
+library(dplyr)
+library(tidyr)
+library(httr)
+library(readr)
+library(jsonlite)
+library(stringr)
+
+# Retrieve personal API key from saved hidden JSON file
+config <- fromJSON("config.json")
+api_key <- config$api_key
+
+# Define main NOMIS API link
+nomis_link <- "https://www.nomisweb.co.uk"
+
+# Read in list of curated API links for relevant data
+api_links_df <- read_csv("nomis_api_links.csv")
+
+# Function to retrieve the relevant url from csv file
+get_data_url <- function(data_name, api_links_df) {
+  row <- api_links_df %>% filter(Name == data_name)
+  url <- row$API_URL
+  return(url)
+}
+
+# Function to retrieve the NOMIS data from the API given the url details
+get_nomis_data <- function(data_url, api_key, nomis_link) {
+  full_url <- paste0(nomis_link, data_url, api_key)
+  response <- GET(full_url)
+  if (response$status_code == 200) { 
+    data <- read_csv(content(response, "text", encoding = "UTF-8"))
+    return(data)
+  } else {
+    stop("Unable to retrieve NOMIS API data")
+  }
+}
+```
+
+```{r}
+clean_rename_standard <- function(df) {
+  # Remove all rows where GEOGRAPHY_CODE is not in England
+  df <- df %>%
+    filter(substr(GEOGRAPHY_CODE, 1, 1) == "E")
+  
+  # Rename geo code and year
+  df <- df %>%
+    rename(LACD = GEOGRAPHY_CODE,
+           Year = DATE_NAME)
+  # Remove redundant geo name
+  df$GEOGRAPHY_NAME <- NULL
+    
+  return(df)
+}
+
+# Rename when OBS_VALUE is equal to variable
+rename_obs_simple <- function(df, varname) {
+  df <- df %>%
+    rename(!!varname := OBS_VALUE)
+  return(df)
+}
+
+# Simple pivot when OBS_VALUE is from single variable
+pivot_simple <- function(df, colname, prefix) {
+  df <- df %>%
+    pivot_wider(
+      names_from = colname,
+      values_from = OBS_VALUE,
+      names_prefix = prefix)
+  return(df)
+}
+```
+
+```{r}
+## GVA Data
+
+# Retrieve GVA data
+gva_url <- get_data_url("gva", api_links_df)
+gva_df <- get_nomis_data(gva_url, api_key, nomis_link)
+gva_df <- rename_obs_simple(gva_df, "GVA")
+gva_df <- clean_rename_standard(gva_df)
+
+# Multiply GVA by 1,000,000 for consistent scale
+gva_df$GVA <- gva_df$GVA * 1000000
+```
+
+```{r}
+## Population Data (general)
+
+# Retrieve general population/sex data
+pop_sex_url <- get_data_url("pop_sex", api_links_df)
+pop_sex_df <- get_nomis_data(pop_sex_url, api_key, nomis_link)
+
+# Pivot data into separate columns
+pop_sex_df <- pivot_simple(pop_sex_df, "GENDER_NAME", "Pop_")
+pop_sex_df <- clean_rename_standard(pop_sex_df)
+```
+
+```{r}
+## Population Data (work age groups)
+
+# Retrieve age groups population data
+pop_work_age_url <- get_data_url("pop_work_age", api_links_df)
+pop_work_age_df <- get_nomis_data(pop_work_age_url, api_key, nomis_link)
+
+# Pivot data into separate columns
+pop_work_age_df <- pivot_simple(pop_work_age_df, "C_AGE_NAME", "Pop_")
+
+# Simplify the age group column names
+pop_work_age_df <- pop_work_age_df %>%
+  rename_with(~ str_replace_all(., c(" to " = "_", " " = "_")),
+                                starts_with("Pop_"))
+# Clean and rename the data
+pop_work_age_df <- clean_rename_standard(pop_work_age_df)
+```
+
+```{r}
+## Population Data (all ages)
+
+# Retrieve all ages population data
+pop_all_age_url <- get_data_url("pop_all_age", api_links_df)
+pop_all_age_df <- get_nomis_data(pop_all_age_url, api_key, nomis_link)
+
+# Standard clean and rename
+pop_all_age_df <- clean_rename_standard(pop_all_age_df)
+
+pop_all_age_df <- pop_all_age_df %>%
+  mutate(C_AGE_NAME = as.numeric(str_extract(C_AGE_NAME, "\\d+")))
+
+# Calculate weighted average age for each LACD and Year
+pop_all_age_df <- pop_all_age_df %>%
+  group_by(LACD, Year) %>%
+  summarise(
+    Total_Pop = sum(OBS_VALUE, na.rm = TRUE),
+    Age_Avg = sum(C_AGE_NAME * OBS_VALUE, na.rm = TRUE) / Total_Pop,
+    .groups = 'drop'
+  )
+
+# Drop redundant total population column
+pop_all_age_df$Total_Pop <- NULL
+```
+
+```{r}
+## Jobs Density Data
+
+# Retrieve jobs density data
+jobs_url <- get_data_url("jobs", api_links_df)
+jobs_df <- get_nomis_data(jobs_url, api_key, nomis_link)
+
+# Pivot data into separate columns
+jobs_df <- pivot_simple(jobs_df, "ITEM_NAME", "")
+
+# Manually rename the columns
+jobs_df <- jobs_df %>%
+  rename(
+    Jobs_Density_16_64 = "Jobs density",
+    Jobs_Total = "Total jobs")
+
+# Standard clean and rename
+jobs_df <- clean_rename_standard(jobs_df)
+```
+
+```{r}
+## Claimant Count Data
+
+# Retrieve claimant count data
+claimant_url <- get_data_url("claimant", api_links_df)
+claimant_df <- get_nomis_data(claimant_url, api_key, nomis_link)
+
+# Pivot data into separate columns
+claimant_df <- pivot_simple(claimant_df, "MEASURE_NAME", "")
+
+# Manually rename the columns
+claimant_df <- claimant_df %>%
+  rename(
+    "Claimants_Total" = "Claimant count",
+    "Claimants_Density_16_64" = "Claimants as a proportion of residents aged 16-64")
+
+# Change percentage to decimal
+claimant_df$Claimants_16_64_Prop <- claimant_df$Claimants_Density_16_64 / 100
+
+# Remove redundant columns
+claimant_df$GENDER_NAME <- NULL
+
+# Remove string from date column
+claimant_df <- claimant_df %>%
+  mutate(DATE_NAME = as.numeric(str_extract(DATE_NAME, "\\d+")))
+
+# Standard clean and rename
+claimant_df <- clean_rename_standard(claimant_df)
+```
+
+```{r}
+# Disposable income data
+
+# Retrieve disposable income data
+gdhi_url <- get_data_url("gdhi", api_links_df)
+gdhi_df <- get_nomis_data(gdhi_url, api_key, nomis_link)
+
+# Multiply GDHI by 1,000,000 for consistent scale
+gdhi_df$OBS_VALUE <- gdhi_df$OBS_VALUE * 1000000
+
+# Pivot data into separate columns
+gdhi_df <- pivot_simple(gdhi_df, "COMPONENT_OF_GDHI_NAME", "GDHI_")
+
+# Manually rename the columns
+gdhi_df <- gdhi_df %>%
+  rename(
+    "GDHI_Total" = "GDHI_Gross Disposable Household Income (GDHI)",
+    "GDHI_Primary_Resources" = "GDHI_Primary resources",
+    "GDHI_Secondary_Resources" = "GDHI_Secondary resources",
+    "GDHI_Primary_Uses" = "GDHI_Primary uses",
+    "GDHI_Secondary_Uses" = "GDHI_Secondary uses")
+
+# Standard clean and rename
+gdhi_df <- clean_rename_standard(gdhi_df)
+```
+
+```{r}
+# Merge all NOMIS dataframes
+nomis_df <- gva_df %>%
+  full_join(claimant_df, by = c("LACD", "Year")) %>%
+  full_join(jobs_df, by = c("LACD", "Year")) %>%
+  full_join(pop_all_age_df, by = c("LACD", "Year")) %>%
+  full_join(pop_sex_df, by = c("LACD", "Year")) %>%
+  full_join(pop_work_age_df, by = c("LACD", "Year")) %>%
+  full_join(gdhi_df, by = c("LACD", "Year"))
+```
+
+```{r}
+# Save NOMIS data to a CSV file
+write.csv(nomis_df, "nomis_data_processed.csv", row.names = FALSE)
+```

@@ -1,0 +1,108 @@
+```{r}
+library(dplyr)
+library(tidyr)
+library(readxl)
+library(stringr)
+
+# Define function to read and transform all HPSSA datasets
+process_property_data <- function(filename, sheet, skip_rows) {
+  
+  # Define constant parameters
+  sheet = "2a"
+  skip_rows = 6
+  folderpath <- "./property_data_raw/"
+  filepath <- paste0(folderpath, filename)
+  
+  # Read in Excel file, skipping specified number of rows
+  df <- read_excel(filepath, sheet = sheet, skip = skip_rows)
+  
+  # Rename code column for consistency
+  df <- df %>%
+    rename(
+      LACD = "Local authority code")
+  
+  # Remove Wales from the data
+  df <- df %>%
+    filter(`Region/Country name` != "Wales")
+  
+  # Remove redundant columns
+  df["Local authority name"] <- NULL
+  df["Region/Country name"] <- NULL
+  df["Region/Country code"] <- NULL
+  
+  # Extract columns for year ending in March
+  march_cols <- grep("Year ending Mar", colnames(df), value = TRUE)
+  
+  # Create new column names based on the passed year
+  renamed_cols <- sapply(march_cols, function(col_name) {
+    year <- as.numeric(sub("Year ending Mar ", "", col_name))
+    as.character(year - 1)
+  })
+  
+  # Select relevant columns including LACD
+  df <- df %>%
+    select(LACD, all_of(march_cols))
+  
+  # Rename columns to the new year names
+  colnames(df) <- c("LACD", renamed_cols)
+  
+  # Pivot data to panel format
+  variable_name <- sub("\\.xls$", "", filename)
+  variable_name <- str_to_title(gsub("_", " ", variable_name))
+  variable_name <- gsub(" ", "_", variable_name)
+  df <- df %>%
+    pivot_longer(
+      cols = -c(LACD),
+      names_to = "Year",
+      values_to = variable_name
+    )
+  
+  # Convert all columns (except LACD) to numeric
+  df <- df %>%
+    mutate(across(-LACD, as.numeric))
+  
+  return(df)
+}
+```
+
+```{r}
+# Extract and transform all HPSSA datasets
+sales_total_df <- process_property_data("hs_sales_total.xls")
+sales_new_df <- process_property_data("hs_sales_new.xls")
+sales_exist_df <- process_property_data("hs_sales_exist.xls")
+price_median_df <- process_property_data("hs_price_median.xls")
+price_median_new_df <- process_property_data("hs_price_median_new.xls")
+price_median_exist_df <- process_property_data("hs_price_median_exist.xls")
+price_mean_df <- process_property_data("hs_price_mean.xls")
+price_mean_new_df <- process_property_data("hs_price_mean_new.xls")
+price_mean_exist_df <- process_property_data("hs_price_mean_exist.xls")
+price_25th_df <- process_property_data("hs_price_25th.xls")
+price_10th_df <- process_property_data("hs_price_10th.xls")
+```
+
+```{r}
+# Merge all property dataframes
+property_df <- sales_total_df %>%
+  full_join(sales_new_df, by = c("LACD", "Year")) %>%
+  full_join(sales_exist_df, by = c("LACD", "Year")) %>%
+  full_join(price_median_df, by = c("LACD", "Year")) %>%
+  full_join(price_median_new_df, by = c("LACD", "Year")) %>%
+  full_join(price_median_exist_df, by = c("LACD", "Year")) %>%
+  full_join(price_mean_df, by = c("LACD", "Year")) %>%
+  full_join(price_mean_new_df, by = c("LACD", "Year")) %>%
+  full_join(price_mean_exist_df, by = c("LACD", "Year")) %>%
+  full_join(price_25th_df, by = c("LACD", "Year")) %>%
+  full_join(price_10th_df, by = c("LACD", "Year"))
+```
+
+```{r}
+# Feature engineer % of sales that are new builds
+property_df <- property_df %>%
+  mutate(Hs_Sales_New_Prop = Hs_Sales_New / Hs_Sales_Total)
+```
+
+```{r}
+# Save merged dataset to a CSV file
+write.csv(property_df, "property_data_processed.csv", row.names = FALSE)
+```
+
