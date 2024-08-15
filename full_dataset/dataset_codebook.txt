@@ -1,0 +1,324 @@
+Variable Name: Year
+Description: Year of data collection
+Unit: Year
+Dataset: Band D Council Tax Figures
+Source: Ministry of Housing, Communities and Local Government; Department for Levelling Up
+
+Variable Name: LACD
+Description: Local Authority Code (district/unitary, 2021)
+Unit: ONS Code (time invariant)
+Dataset: Band D Council Tax Figures
+Source: Ministry of Housing, Communities and Local Government; Department for Levelling Up
+
+Variable Name: LANM
+Description: Local Authority Name (district/unitary, 2021)
+Unit: ONS Code (time invariant)
+Dataset: Band D Council Tax Figures
+Source: Ministry of Housing, Communities and Local Government; Department for Levelling Up
+
+Variable Name: Authority_Type
+Description: Type of Authority
+Unit: Category (time invariant)
+Dataset: Band D Council Tax Figures
+Source: Ministry of Housing, Communities and Local Government; Department for Levelling Up
+
+Variable Name: Region
+Description: Geographic region
+Unit: Category (time invariant)
+Dataset: Band D Council Tax Figures
+Source: Ministry of Housing, Communities and Local Government; Department for Levelling Up
+
+Variable Name: Tax_D_Real
+Description: Average Band D council tax payment (base year 2021)
+Unit: GBP, inflation-adjusted figures (base year 2021)
+Dataset: Band D Council Tax Figures
+Source: Office For National Statistics (ONS)
+
+Variable Name: Claimants_Total
+Description: Number of Universal Credit and Job Seekers Allowance Claimants
+Unit: Number of residents
+Dataset: Claimant count by sex and age
+Source: Office For National Statistics (ONS)
+
+Variable Name: Claimants_16_64_Prop
+Description: Number of claimants per resident aged 16-64
+Unit: Claimants per resident (16-64)
+Dataset: Claimant count by sex and age
+Source: Office For National Statistics (ONS)
+
+Variable Name: Hs_Price_Median_New_Real
+Description: Median house price of newly built houses (base year 2021)
+Unit: GBP, inflation-adjusted figures (base year 2021)
+Dataset: HPSSA 10
+Source: Office For National Statistics (ONS)
+
+Variable Name: Hs_Price_Median_Exist_Real
+Description: Median house price of existing houses (base year 2021)
+Unit: GBP, inflation-adjusted figures (base year 2021)
+Dataset: HPSSA 11
+Source: Office For National Statistics (ONS)
+
+Variable Name: Hs_Price_Mean_Real
+Description: Mean house price (base year 2021)
+Unit: GBP, inflation-adjusted figures (base year 2021)
+Dataset: HPSSA 12
+Source: Office For National Statistics (ONS)
+
+Variable Name: Hs_Price_Mean_New_Real
+Description: Mean house price of newly built houses (base year 2021)
+Unit: GBP, inflation-adjusted figures (base year 2021)
+Dataset: HPSSA 13
+Source: Office For National Statistics (ONS)
+
+Variable Name: Hs_Price_Mean_Exist_Real
+Description: Mean house price of existing houses (base year 2021)
+Unit: GBP, inflation-adjusted figures (base year 2021)
+Dataset: HPSSA 14
+Source: Office For National Statistics (ONS)
+
+Variable Name: Hs_Price_25th_Real
+Description: 25th percentile house price (base year 2021)
+Unit: GBP, inflation-adjusted figures (base year 2021)
+Dataset: HPSSA 15
+Source: Office For National Statistics (ONS)
+
+Variable Name: Hs_Price_10th_Real
+Description: 10th percentile house price (base year 2021)
+Unit: GBP, inflation-adjusted figures (base year 2021)
+Dataset: HPSSA 18
+Source: Office For National Statistics (ONS)
+
+Variable Name: Hs_Sales_Total
+Description: Total number of property sales
+Unit: Number of sales
+Dataset: HPSSA 6
+Source: Office For National Statistics (ONS)
+
+Variable Name: Hs_Sales_New_Prop
+Description: Proportion of sales that are newly built dwellings
+Unit: Newly built dwellings per property sale
+Dataset: HPSSA 6; HPSSA 7
+Source: Office For National Statistics (ONS)
+
+Variable Name: Hs_Sales_Total_Density
+Description: Total number of property sales per resident
+Unit: Sales per resident
+Dataset: HPSSA 6; Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: Hs_Sales_New
+Description: Sales of newly built dwellings
+Unit: Number of sales
+Dataset: HPSSA 7
+Source: Office For National Statistics (ONS)
+
+Variable Name: Hs_Sales_New_Density
+Description: Sales of newly built dwellings per resident
+Unit: Newly built sales per resident
+Dataset: HPSSA 7; Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: Hs_Sales_Exist
+Description: Sales of existing dwellings
+Unit: Number of sales
+Dataset: HPSSA 8
+Source: Office For National Statistics (ONS)
+
+Variable Name: Hs_Sales_Exist_Density
+Description: Sales of existing dwellings per resident
+Unit: Existing sales per resident
+Dataset: HPSSA 8; Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: Hs_Price_Median_Real
+Description: Median house price (base year 2021)
+Unit: GBP, inflation-adjusted figures (base year 2021)
+Dataset: HPSSA 9
+Source: Office For National Statistics (ONS)
+
+Variable Name: Jobs_Total
+Description: Total number of jobs filled (by commuters or residents)
+Unit: Number of jobs
+Dataset: Jobs density
+Source: Office For National Statistics (ONS)
+
+Variable Name: Jobs_Density_16_64
+Description: Number of jobs per resident aged 16-64
+Unit: Jobs per resident (16-64)
+Dataset: Jobs density
+Source: Office For National Statistics (ONS)
+
+Variable Name: Area
+Description: Total area
+Unit: Square-kilometres (time invariant)
+Dataset: Local Authority Districts Boundaries UK BFE
+Source: Office For National Statistics (ONS)
+
+Variable Name: Age_Avg
+Description: Average age
+Unit: Years
+Dataset: Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: Pop_Total
+Description: Total population
+Unit: Number of residents
+Dataset: Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: Pop_Male
+Description: Total male population
+Unit: Number of residents
+Dataset: Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: Pop_Female
+Description: Total female population
+Unit: Number of residents
+Dataset: Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: Pop_Aged_0_15
+Description: Population aged 0-15
+Unit: Number of residents
+Dataset: Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: Pop_Aged_16_24
+Description: Population aged 16-24
+Unit: Number of residents
+Dataset: Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: Pop_Aged_25_49
+Description: Population aged 25-49
+Unit: Number of residents
+Dataset: Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: Pop_Aged_50_64
+Description: Population aged 50-64
+Unit: Number of residents
+Dataset: Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: Pop_Density
+Description: Population density
+Unit: Residents per square-kilometre
+Dataset: Population estimates - local authority based by single year of age; Local Authority Districts Boundaries UK BFE
+Source: Office For National Statistics (ONS)
+
+Variable Name: Pop_Male_Prop
+Description: Proportion of population that are Male
+Unit: Male residents per resident
+Dataset: Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: Pop_Female_Prop
+Description: Proportion of population that are Female
+Unit: Female residents per resident
+Dataset: Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: Pop_Aged_0_15_Prop
+Description: Proportion of population that are aged 0-15
+Unit: Residents aged 0-15 per resident
+Dataset: Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: Pop_Aged_16_24_Prop
+Description: Proportion of population that are aged 16-25
+Unit: Residents aged 16-25 per resident
+Dataset: Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: Pop_Aged_25_49_Prop
+Description: Proportion of population that are aged 25-49
+Unit: Residents aged 25-49 per resident
+Dataset: Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: Pop_Aged_50_64_Prop
+Description: Proportion of population that are aged 50-64
+Unit: Residents aged 50-64 per resident
+Dataset: Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: GDHI_Total_Real
+Description: Gross Disposable Household Income (GDHI)
+Unit: GBP, inflation-adjusted figures (base year 2021)
+Dataset: Regional gross disposable household income (GDHI) at current basic prices
+Source: Office For National Statistics (ONS)
+
+Variable Name: GDHI_Primary_Resources_Real
+Description: Received income from property, assets, employment
+Unit: GBP, inflation-adjusted figures (base year 2021)
+Dataset: Regional gross disposable household income (GDHI) at current basic prices
+Source: Office For National Statistics (ONS)
+
+Variable Name: GDHI_Secondary_Resources_Real
+Description: Received social contributions by employers, insurance claims, others
+Unit: GBP, inflation-adjusted figures (base year 2021)
+Dataset: Regional gross disposable household income (GDHI) at current basic prices
+Source: Office For National Statistics (ONS)
+
+Variable Name: GDHI_Primary_Uses_Real
+Description: Paid interest on loans and rent on land
+Unit: GBP, inflation-adjusted figures (base year 2021)
+Dataset: Regional gross disposable household income (GDHI) at current basic prices
+Source: Office For National Statistics (ONS)
+
+Variable Name: GDHI_Secondary_Uses_Real
+Description: Paid taxes and insurance costs
+Unit: GBP, inflation-adjusted figures (base year 2021) per resident
+Dataset: Regional gross disposable household income (GDHI) at current basic prices
+Source: Office For National Statistics (ONS)
+
+Variable Name: GDHI_Total_Real_Density_Real
+Description: GDHI per resident
+Unit: GBP, inflation-adjusted figures (base year 2021) per resident
+Dataset: Regional gross disposable household income (GDHI) at current basic prices; Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: GDHI_Primary_Resources_Real_Density
+Description: Primary resources per resident
+Unit: GBP, inflation-adjusted figures (base year 2021) per resident
+Dataset: Regional gross disposable household income (GDHI) at current basic prices; Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: GDHI_Secondary_Resources_Real_Density
+Description: Secondary resources per resident
+Unit: GBP, inflation-adjusted figures (base year 2021) per resident
+Dataset: Regional gross disposable household income (GDHI) at current basic prices; Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: GDHI_Primary_Uses_Real_Density
+Description: Primary uses per resident
+Unit: GBP, inflation-adjusted figures (base year 2021) per resident
+Dataset: Regional gross disposable household income (GDHI) at current basic prices; Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: GDHI_Secondary_Uses_Real_Density
+Description: Secondary uses per resident
+Unit: GBP, inflation-adjusted figures (base year 2021) per resident
+Dataset: Regional gross disposable household income (GDHI) at current basic prices; Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Variable Name: GVA_Real
+Description: Gross Value Added
+Unit: GBP, inflation-adjusted figures (base year 2021)
+Dataset: UK small area gross value added estimates
+Source: Office For National Statistics (ONS)
+
+Variable Name: GVA_Real_Density
+Description: Gross Value Added per resident
+Unit: GBP, inflation-adjusted figures (base year 2021) per resident
+Dataset: UK small area gross value added estimates; Population estimates - local authority based by single year of age
+Source: Office For National Statistics (ONS)
+
+Notes:
+All variables vary by year and local authority, unless otherwise specified in the "Unit" section. 
+Missing values have been imputed using the missForest algorithm.
+Methodological details are outlined in the main paper.
+
+
