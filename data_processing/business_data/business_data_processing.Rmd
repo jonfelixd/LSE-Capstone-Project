@@ -1,0 +1,123 @@
+```{r}
+library(dplyr)
+library(tidyr)
+library(readxl)
+library(ggplot2)
+library(scales)
+```
+
+```{r}
+# Define filepaths 
+filepath_bdata_2017 <- "./business_data_raw/business_count_2017.xls"
+filepath_bdata_2018 <- "./business_data_raw/business_count_2018.xls"
+filepath_bdata_2019 <- "./business_data_raw/business_count_2019.xlsx"
+filepath_bdata_2020 <- "./business_data_raw/business_count_2020.xlsx"
+```
+
+```{r}
+# Function to process business data
+process_bdata <- function(filepath_bdata, year){
+  # Read excel file
+  bdata <- read_excel(filepath_bdata, sheet = "Table 1", skip = 5)
+  # Rename columns
+  colnames(bdata)[1] <- "LACD"
+  colnames(bdata)[ncol(bdata)] <- "Businesses_Total"
+  # Remove non England data (LACD without "E")
+  bdata <- bdata %>% 
+    filter(grepl("E", LACD))
+  # Add year column
+  bdata$Year <- year
+  # Select relevant columns
+  bdata <- bdata %>% 
+    select(LACD, Year, Businesses_Total)
+  return(bdata)
+}
+
+# Process business data
+bdata_2017 <- process_bdata(filepath_bdata_2017, 2017)
+bdata_2018 <- process_bdata(filepath_bdata_2018, 2018)
+bdata_2019 <- process_bdata(filepath_bdata_2019, 2019)
+bdata_2020 <- process_bdata(filepath_bdata_2020, 2020)
+```
+
+```{r}
+# Combine business data
+bdata <- bind_rows(bdata_2017, bdata_2018, bdata_2019, bdata_2020)
+
+# Import the pre-processed full dataset
+full_dataset <- read.csv("../merged_data/full_dataset.csv")
+
+# Merge business data with full data
+full_dataset_bdata <- full_dataset %>% 
+  inner_join(bdata, by = c("LACD", "Year"))
+```
+
+```{r}
+# Define the scatter plot function
+plot_scatter <- function(data, x_variable, y_variable, x_axis_label, y_axis_label) {
+  
+  data <- data[!is.na(data[[x_variable]]) & !is.na(data[[y_variable]]),]  
+  
+  font_family <- "Times New Roman"
+  
+  # Reorder default ggplot colors
+  default_colors <- scale_color_discrete()$palette(length(unique(data$Year)))
+  reordered_colors <- default_colors[c(2, 4, 1, 3)]
+  
+  # Define plot design
+  ggplot(data, aes(x = .data[[x_variable]],
+                   y = .data[[y_variable]],
+                   color = as.factor(Year))) +
+    geom_point(alpha = 0.6) +
+    geom_smooth(method = "lm", se = TRUE, color = "black") +
+    labs(x = x_axis_label, y = y_axis_label, color = "Year") + 
+    scale_y_continuous(labels = label_number(scale = 1e-3)) +
+    scale_x_continuous(labels = label_number(scale = 1e-3)) +
+    scale_color_manual(values = reordered_colors) +
+    theme_minimal() + 
+    theme(
+      legend.text = element_text(family = font_family, size = 14),
+      legend.title = element_text(family = font_family, size = 16),
+      plot.background = element_rect(fill = NA, color = NA),
+      panel.background = element_rect(fill = NA, color = NA),
+      panel.grid.major = element_line(),
+      panel.grid.minor = element_blank(),
+      axis.line = element_blank(),
+      axis.title.x = element_text(margin = margin(t = 10),
+                                  family = font_family, size = 16),
+      axis.title.y = element_text(margin = margin(r = 10),
+                                  family = font_family, size = 16),
+      axis.text.x = element_text(hjust = 1,
+                                 family = font_family, size = 14),
+      axis.text.y = element_text(family = font_family, size = 14),
+      legend.position = "inside",
+      legend.position.inside = c(0.9, 0.15),
+      legend.justification = c("right", "bottom"),
+      legend.background = element_rect(fill = "white",
+                                       color = NA)
+    )
+}
+
+# Scatter plot of Businesses_Total vs. Jobs_Total
+plot_scatter(full_dataset_bdata, "Businesses_Total", "Jobs_Total", 
+             "Number of Businesses (1,000s)", "Number of Jobs (1,000s)")
+```
+```{r}
+# Extract correlation coefficient
+correlation_coefficient <- cor(full_dataset_bdata$Jobs_Total, full_dataset_bdata$Businesses_Total)
+print(paste("Correlation coefficient:", correlation_coefficient))
+
+# Save figure as a PNG file
+ggsave("./figures/proxy_scatter.png", width = 8, height = 6, dpi = 300)
+```
+
+```{r}
+# Log transform for r-squared and p-value (because of hetereoskedasticity)
+full_dataset_bdata$log_Jobs_Total <- log(full_dataset_bdata$Jobs_Total)
+full_dataset_bdata$log_Businesses_Total <- log(full_dataset_bdata$Businesses_Total)
+
+# Run linear model and print r-squared and p-value
+model <- lm(log_Jobs_Total ~ log_Businesses_Total, data = full_dataset_bdata)
+print(paste("R-squared:", summary(model)$r.squared))
+print(paste("P-value:", summary(model)$coefficients[2, 4]))
+```

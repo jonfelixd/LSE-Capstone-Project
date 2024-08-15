@@ -1,0 +1,29 @@
+```{r}
+library(readxl)
+library(tidyr)
+
+# Import raw IMF GBP inflation data
+filepath_inflation <- "./inflation_data_raw/imf_gbr_inflation.xls"
+inflation_df <- read_xls(filepath_inflation)
+
+# Delete all rows but 2
+inflation_df <- inflation_df[2, ]
+
+# Delete first column
+inflation_df <- inflation_df[-1]
+
+# Pivot the data
+inflation_df <- inflation_df %>%
+  pivot_longer(cols = everything(),
+               names_to = "Year",
+               values_to = "Inflation_Rate")
+
+# Convert the inflation rate to numeric
+inflation_df$Inflation_Rate <- as.numeric(inflation_df$Inflation_Rate)
+```
+
+```{r }
+# Save processed data to csv file
+write.csv(inflation_df, "inflation_data_processed.csv", row.names = FALSE)
+
+```

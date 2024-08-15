@@ -1,0 +1,319 @@
+```{r}
+library(readxl)
+library(dplyr)
+library(tidyr)
+
+# Define filepath and import council tax data
+filepath_tax <- "./tax_data_raw/council_tax_band_d.xlsx"
+df <- read_excel(filepath_tax, sheet = "Area_CT", skip = 2)
+```
+
+```{r}
+# Turn "[z]" into NAs
+cleaned_df <- df
+cleaned_df[cleaned_df == "[z]"] <- NA
+
+# Rename "ONS Code" to "LACD"
+names(cleaned_df)[names(cleaned_df) == "ONS Code"] <- "LACD"
+
+# Rename "Authority" to "LANM"
+names(cleaned_df)[names(cleaned_df) == "Authority"] <- "LANM"
+
+# Drop first 22 rows of summary data
+cleaned_df <- cleaned_df[-c(1:22), ]
+
+# Drop empty "Notes" column
+cleaned_df$Notes <- NULL
+
+# Use the first year for each of the year headers only
+col_names <- colnames(cleaned_df)
+col_names <- gsub("^(\\d{4}) to \\d{4}$", "\\1", col_names)
+colnames(cleaned_df) <- col_names
+
+# Ensure numeric value columns
+year_cols <- grep("^\\d{4}$", colnames(cleaned_df), value = TRUE)
+cleaned_df[year_cols] <- lapply(cleaned_df[year_cols], as.numeric)
+```
+
+```{r}
+# Define year range
+start_year <- 1997
+end_year <- 2021
+
+# Function to update currently active status for given year range
+update_current_status <- function(df, end_year) {
+  df <- df %>%
+    mutate(Current = ifelse(
+      is.na(get(as.character(end_year))),
+      "NO",
+      "YES"
+    ))
+  return(df)
+}
+
+# Run update function
+current_df <- update_current_status(cleaned_df, end_year)
+
+# Drop not currently active
+current_df <- current_df %>% filter(Current == "YES")
+
+# Function to cut off years outside of range
+cut_year_range <- function(df, start_year, end_year) {
+  # Loop through each column
+  for (col in colnames(df)) {
+    # Check if the column name matches a year and is outside the range
+    if (grepl("^\\d{4}$", col) &&
+        (as.numeric(col) < start_year ||
+         as.numeric(col) > end_year)) {
+      # Remove the column
+      df[[col]] <- NULL
+    }
+  }
+  return(df)
+}
+
+# Run cut function
+current_df <- cut_year_range(current_df, start_year, end_year)
+```
+
+```{r}
+# Calculate percentage of NA values
+total_values <- prod(dim(current_df))
+na_values <- sum(is.na(current_df))
+percent_na <- (na_values / total_values) * 100
+
+# Calculate number of rows with any NA values
+rows_with_na <- sum(apply(current_df, 1, function(row) any(is.na(row))))
+
+# Display results
+print(paste("Percentage of NA values:", percent_na))
+print(paste("Number of rows with any NA values:", rows_with_na))
+```
+
+```{r}
+# Define vector of UA Class LA Codes with any NA values
+na_ua_cd <- current_df %>%
+  filter(Class == "UA" & if_any(everything(), is.na)) %>%
+  pull("LACD")
+
+# Define corresponding names
+na_ua_nm <- current_df %>%
+  filter(LACD %in% na_ua_cd) %>%
+  pull("LANM")
+```
+
+```{r}
+# Define as named list
+na_ua_lst <- setNames(vector("list", length(na_ua_nm)), na_ua_nm)
+
+# Print names and indices
+for (i in 1:length(na_ua_lst)) {
+  cat(i, ": ", names(na_ua_lst)[i], "\n")
+}
+
+# Manually define merging councils based on legislation archives
+# (https://www.legislation.gov.uk)
+na_ua_lst[["Bournemouth, Christchurch & Poole"]] <- c("Bournemouth UA",
+                                                    "Christchurch",
+                                                    "Poole UA")
+
+na_ua_lst[["Buckinghamshire UA"]] <- c("Aylesbury Vale",
+                                      "Chiltern",
+                                      "South Bucks",
+                                      "Wycombe")
+
+na_ua_lst[["Central Bedfordshire UA"]] <- c("Mid Bedfordshire",
+                                          "South Bedfordshire")
+
+na_ua_lst[["Cheshire East UA"]] <- c("Congleton",
+                                    "Crewe & Nantwich",
+                                    "Macclesfield")
+
+na_ua_lst[["Cheshire West and Chester UA"]] <- c("Chester",
+                                               "Ellesmere Port & Neston",
+                                               "Vale Royal")
+
+na_ua_lst[["Cornwall UA"]] <- c("Caradon",
+                              "Carrick",
+                              "Kerrier",
+                              "North Cornwall",
+                              "Penwith",
+                              "Restormel")
+
+na_ua_lst[["Dorset Council"]] <- c("East Dorset",
+                                  "North Dorset",
+                                  "Purbeck",
+                                  "West Dorset",
+                                  "Weymouth & Portland")
+
+na_ua_lst[["Durham UA"]] <- c("Sedgefield",
+                              "Durham City",
+                              "Chester-le-Street",
+                              "Derwentside",
+                              "Easington",
+                              "Teesdale",
+                              "Wear Valley")
+
+na_ua_lst[["Herefordshire UA"]] <- c("Hereford",
+                                      "South Herefordshire",
+                                      "Leominster",
+                                      "Malvern Hills")
+
+na_ua_lst[["Medway UA"]] <- c("Gillingham",
+                              "Rochester upon Medway")
+
+na_ua_lst[["North Northamptonshire"]] <- c("Corby",
+                                              "East Northamptonshire",
+                                              "Kettering",
+                                              "Wellingborough")
+
+na_ua_lst[["Northumberland UA"]] <- c("Berwick-upon-Tweed",
+                                    "Blyth Valley",
+                                    "Castle Morpeth",
+                                    "Alnwick",
+                                    "Tynedale",
+                                    "Wansbeck")
+
+na_ua_lst[["Shropshire UA"]] <- c("Bridgnorth",
+                                "North Shropshire",
+                                "Oswestry",
+                                "Shrewsbury & Atcham",
+                                "South Shropshire")
+
+
+na_ua_lst[["Telford and the Wrekin UA"]] <- c("The Wrekin")
+
+na_ua_lst[["West Northamptonshire"]] <- c("Daventry",
+                                          "Northampton",
+                                          "South Northamptonshire")
+
+na_ua_lst[["Wiltshire UA"]] <- c("Kennet",
+                                "North Wiltshire",
+                                "Salisbury",
+                                "West Wiltshire")
+
+```
+
+```{r}
+# Define vector of all merging/closed sub councils from UAs
+sub_ua_nm <- unlist(na_ua_lst, use.names = FALSE)
+
+# Check for any NA non-UAs which are not merging/closed sub councils
+na_non_ua <- current_df %>%
+  filter(Class != "UA" &
+         !LANM %in% sub_ua_nm &
+         if_any(everything(), is.na)
+         ) %>%
+  pull("LANM")
+
+# Initialise list of other council changes (non-UA)
+na_other_lst <- list()
+
+# Manually define other council mergers based on legislation archives
+# (https://www.legislation.gov.uk)
+
+na_other_lst[["Somerset West & Taunton"]] <- c("Taunton Deane",
+                                               "West Somerset")
+
+na_other_lst[["West Suffolk"]] <- c("Forest Heath",
+                                    "St Edmundsbury")
+
+na_other_lst[["East Suffolk"]] <- c("Suffolk Coastal",
+                                    "Waveney")
+
+# Create full council mergers list
+mergers_lst <- c(na_ua_lst, na_other_lst)
+
+# Validate that all councils in mergers_lst are in the data
+for (council in unlist(mergers_lst)) {
+  if (!council %in% cleaned_df$LANM) {
+    message("Council not found in data: ", council, "\n")
+  }
+}
+```
+
+```{r}
+# Function to fill missing values based on averages from merging councils
+fill_ua_values <- function(df, lst) {
+  # Iterate over merged (larger) main councils
+  for (main_council in names(lst)) {
+    # Call the sub councils merging into main council
+    sub_councils <- lst[[main_council]]
+    
+    # Find year columns and iterate over them
+    years <- grep("^\\d{4}$", colnames(df), value = TRUE)
+    for (year in years) {
+      # Check if there are matching rows for the main council
+      main_council_rows <- df$LANM == main_council
+      
+      if (any(main_council_rows)) {
+        # Check if the relevant value is missing
+        if (is.na(df[main_council_rows, year])) {
+          # Calculate the average of sub_councils for the given year
+          sub_council_values <- df[df$LANM %in% sub_councils, year, drop = FALSE]
+          average_value <- mean(unlist(sub_council_values), na.rm = TRUE)
+          
+          # Fill the missing value with the calculated average
+          df[main_council_rows, year] <- average_value
+        }
+      }
+    }
+  }
+  return(df)
+}
+```
+
+```{r}
+# Apply fill function
+filled_df <- fill_ua_values(cleaned_df, mergers_lst)
+```
+
+```{r}
+# Update current status for filled data
+filled_df <- update_current_status(filled_df, end_year)
+```
+
+```{r}
+# Define vector of all merging and merged councils
+sub_nm <- unlist(mergers_lst, use.names = FALSE)
+
+# Show list of non-active councils not in sub_NM
+non_sub_non_active <- filled_df %>%
+  filter(!LANM %in% sub_nm &
+         Current == "NO") %>%
+  pull("LANM")
+
+# Drop not currently active
+filled_df_current <- filled_df %>% filter(Current == "YES")
+
+# Cut off years outside of range for filled data
+filled_df_current <- cut_year_range(filled_df_current, start_year, end_year)
+
+# Check if there are any remaining NA values
+final_na_check <- sum(is.na(filled_df_current))
+```
+
+```{r}
+# Pivot data to panel format
+pivot_df <- filled_df_current %>%
+  pivot_longer(
+    # Match columns that represent years
+    cols = matches("^\\d{4}$"),
+    names_to = "Year",
+    values_to = "Tax_D"
+  )
+
+# Drop Current and Code columns
+pivot_df$Current <- NULL
+pivot_df$Code <- NULL
+
+# Reorder and rename columns
+final_tax_df <- pivot_df %>%
+  select(LACD, LANM, Year, Class, Region, Tax_D) %>%
+  rename(Authority_Type = Class)
+```
+
+```{r}
+# Save final data to CSV
+write.csv(final_tax_df, "tax_data_processed.csv", row.names = FALSE)
+```
